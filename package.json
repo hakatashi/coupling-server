@@ -19,6 +19,7 @@
   "homepage": "https://github.com/hakatashi/coupling-server#readme",
   "dependencies": {
     "axios": "^0.18.0",
+    "dotenv": "^6.0.0",
     "googleapis": "^32.0.0"
   }
 }
