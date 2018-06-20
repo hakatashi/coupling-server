@@ -16,5 +16,9 @@
   "bugs": {
     "url": "https://github.com/hakatashi/coupling-server/issues"
   },
-  "homepage": "https://github.com/hakatashi/coupling-server#readme"
+  "homepage": "https://github.com/hakatashi/coupling-server#readme",
+  "dependencies": {
+    "axios": "^0.18.0",
+    "googleapis": "^32.0.0"
+  }
 }
