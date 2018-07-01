@@ -1,8 +1,4 @@
-require('dotenv').config();
-
 const key = require('./service-account.json');
-const {google} = require('googleapis');
-const axios = require('axios');
 const firebase = require('firebase-admin');
 
 (async () => {
@@ -12,24 +8,7 @@ const firebase = require('firebase-admin');
 	});
 
 	const db = firebase.database();
-
-	const token = await new Promise((resolve, reject) => {
-		var jwtClient = new google.auth.JWT(
-			key.client_email,
-			null,
-			key.private_key,
-			['https://www.googleapis.com/auth/firebase.messaging'],
-			null
-		);
-		jwtClient.authorize(function(err, tokens) {
-			if (err) {
-				reject(err);
-				return;
-			}
-
-			resolve(tokens.access_token);
-		});
-	});
+	const messaging = firebase.messaging();
 
 	const users = await db.ref('/users').once('value');
 
@@ -38,21 +17,22 @@ const firebase = require('firebase-admin');
 			continue;
 		}
 
-		const response = await axios.post('https://fcm.googleapis.com/v1/projects/coupling-moe/messages:send', {
-			message: {
+		try {
+			await messaging.send({
 				token: user.notificationToken,
-				notification: {
-					body: 'てすとだよ',
-					title: '通知テスト',
+				webpush: {
+					notification: {
+						body: 'こんにちは',
+						title: '通知テスト2',
+						click_action: 'https://coupling.moe',
+					},
 				},
-			},
-		}, {
-			headers: {
-				Authorization: `Bearer ${token}`,
-			},
-		});
+			});
 
-		console.log(`Sent notification to ${uid}.`);
+			console.log(`Sent notification to ${uid}.`);
+		} catch (e) {
+			console.log(`Notification failed for ${uid}. (error: ${e.message})`);
+		}
 	}
 
 	await db.goOffline();
