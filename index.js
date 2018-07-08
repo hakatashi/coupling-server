@@ -1,5 +1,6 @@
 const key = require('./service-account.json');
 const firebase = require('firebase-admin');
+const Firestore = require('@google-cloud/firestore');
 
 (async () => {
 	firebase.initializeApp({
@@ -7,19 +8,25 @@ const firebase = require('firebase-admin');
 		databaseURL: 'https://coupling-moe.firebaseio.com',
 	});
 
-	const db = firebase.database();
+	const db = new Firestore({
+		projectId: 'coupling-moe',
+		keyFilename: 'service-account.json',
+	});
+
 	const messaging = firebase.messaging();
 
-	const users = await db.ref('/users').once('value');
+	const users = await db.collection('users').get();
 
-	for (const [uid, user] of Object.entries(users.val())) {
-		if (!user.notificationToken) {
+	for (const user of users.docs) {
+		const data = user.data();
+
+		if (!data.notificationToken) {
 			continue;
 		}
 
 		try {
 			await messaging.send({
-				token: user.notificationToken,
+				token: data.notificationToken,
 				webpush: {
 					notification: {
 						body: 'こんにちは',
@@ -29,12 +36,11 @@ const firebase = require('firebase-admin');
 				},
 			});
 
-			console.log(`Sent notification to ${uid}.`);
+			console.log(`Sent notification to ${user.id}.`);
 		} catch (e) {
-			console.log(`Notification failed for ${uid}. (error: ${e.message})`);
+			console.log(`Notification failed for ${user.id}. (error: ${e.message})`);
 		}
 	}
 
-	await db.goOffline();
 	process.exit();
 })();

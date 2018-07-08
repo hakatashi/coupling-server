@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/hakatashi/coupling-server#readme",
   "dependencies": {
+    "@google-cloud/firestore": "^0.14.1",
     "firebase-admin": "^5.12.1"
   }
 }
