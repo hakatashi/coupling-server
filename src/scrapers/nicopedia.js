@@ -6,6 +6,14 @@ module.exports = async (name) => {
 	const json = result.data.replace(/^\w+\((.+)\)[^)]*$/, '$1');
 	const data = JSON.parse(json);
 
+	if (data === null) {
+		return {
+			title: '',
+			viewTitle: '',
+			description: '',
+		};
+	}
+
 	return {
 		title: data.title,
 		viewTitle: data.view_title,
