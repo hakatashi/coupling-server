@@ -32,6 +32,8 @@ const parse = require('csv-parse');
 				pixpediaName: alternative,
 				tweets: [],
 				category: categoryRef,
+				color: '#212121',
+				gender: 'unknown',
 			};
 
 			const result = await charactersRef.where('name', '==', name).get();
@@ -82,6 +84,7 @@ const parse = require('csv-parse');
 				},
 				names,
 				namesSet: Object.assign({}, ...names.map((name) => ({[name]: true}))),
+				isReversible: true,
 			};
 
 			if (result.empty) {
