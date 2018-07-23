@@ -33,9 +33,9 @@ const customsearch = google.customsearch('v1');
 		keyFilename: 'service-account.json',
 	});
 
-	const charactersRef = await db.collection('characters');
-	const couplingsRef = await db.collection('couplings');
-	const imagesRef = await db.collection('images');
+	const charactersRef = db.collection('characters');
+	const couplingsRef = db.collection('couplings');
+	const imagesRef = db.collection('images');
 	const categoryRef = (await db.collection('categories').where('name', '==', 'アイドルマスターシンデレラガールズ').get()).docs[0].ref;
 
 	if (process.argv.includes('characters')) {
@@ -47,7 +47,6 @@ const customsearch = google.customsearch('v1');
 				pixpediaName: alternative,
 				tweets: [],
 				category: categoryRef,
-				color: '#212121',
 				gender: 'unknown',
 			};
 
@@ -66,6 +65,7 @@ const customsearch = google.customsearch('v1');
 					imageUrl: pixpediaData.imageUrl,
 					nicopediaDescription: nicopediaData.description,
 					pixpediaDescription: pixpediaData.description,
+					color: '#212121',
 				};
 
 				await charactersRef.add(data);
@@ -140,8 +140,21 @@ const customsearch = google.customsearch('v1');
 	}
 
 	if (process.argv.includes('coupling-image')) {
-		const couplingRef = await db.collection('couplings').doc('m1hos0FlfjFNz0vPTfnX');
-		const coupling = await couplingRef.get();
+		let coupling = null;
+		const couplings = await couplingsRef.where('imagesUpdatedAt', '==', null).limit(1).get();
+
+		if (couplings.size !== 0) {
+			coupling = couplings.docs[0];
+		} else {
+			const fetchedCouplings = await couplingsRef.orderBy('imagesUpdatedAt').limit(1).get();
+			if (fetchedCouplings.size !== 0) {
+				coupling = fetchedCouplings.docs[0];
+			} else {
+				return;
+			}
+		}
+
+		console.log(`Fetching images for ${inspect(coupling.data())}`);
 
 		const searchResult = await customsearch.cse.list({
 			q: coupling.get('names').map((name) => `"${name}"`).join(' OR '),
@@ -168,7 +181,7 @@ const customsearch = google.customsearch('v1');
 			}
 		}
 
-		await couplingRef.update({
+		await coupling.ref.update({
 			images,
 			imagesUpdatedAt: new Date(),
 		});
