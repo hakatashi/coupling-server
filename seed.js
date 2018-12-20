@@ -99,8 +99,6 @@ const customsearch = google.customsearch('v1');
 				},
 				names,
 				namesSet: Object.assign({}, ...names.map((name) => ({[name]: true}))),
-				images: [],
-				imagesUpdatedAt: null,
 				isReversible: true,
 				isGeneral: false,
 			};
@@ -120,6 +118,8 @@ const customsearch = google.customsearch('v1');
 					pixpediaName: names[0],
 					nicopediaDescription: nicopediaData.description,
 					pixpediaDescription: pixpediaData.description,
+					images: [],
+					imagesUpdatedAt: null,
 				};
 
 				await couplingsRef.add(data);

@@ -62,3 +62,8 @@ typings/
 
 service-account.json
 *.csv
+
+images
+illust
+picture
+*.json
