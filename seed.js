@@ -130,12 +130,13 @@ const customsearch = google.customsearch('v1');
 				console.log(character2);
 				const character2Ref = characters.docs.find((c) => c.get('name') === character2).ref;
 
-				const coupling = await transaction.get(
+				const result = await transaction.get(
 					couplingsRef
 					.where(`members.${character1Ref.id}`, '==', true)
 					.where(`members.${character2Ref.id}`, '==', true)
 					.where('membersSize', '==', membersSize)
-				).docs[0];
+				);
+				const coupling = result && result.docs[0];
 
 				const baseData = {
 					character1: character1Ref,
