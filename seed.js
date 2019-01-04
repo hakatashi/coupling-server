@@ -121,7 +121,7 @@ const customsearch = google.customsearch('v1');
 	if (process.argv.includes('couplings')) {
 		await db.runTransaction(async (transaction) => {
 			const characters = await transaction.get(charactersRef);
-			console.log(couplingSeed);
+			const couplings = await transaction.get(couplingsRef);
 			for (const [namesString, character1, character2] of couplingSeed) {
 				const names = namesString.split(',');
 				const membersSize = new Set([character1, character2]).size;
@@ -130,13 +130,21 @@ const customsearch = google.customsearch('v1');
 				console.log(character2);
 				const character2Ref = characters.docs.find((c) => c.get('name') === character2).ref;
 
-				const result = await transaction.get(
-					couplingsRef
-					.where(`members.${character1Ref.id}`, '==', true)
-					.where(`members.${character2Ref.id}`, '==', true)
-					.where('membersSize', '==', membersSize)
+				const coupling = process.argv.includes('serial') ? await (async () => {
+					const result = await couplingsRef
+						.where(`members.${character1Ref.id}`, '==', true)
+						.where(`members.${character2Ref.id}`, '==', true)
+						.where('membersSize', '==', membersSize)
+						.get();
+					const coupling = result && result.docs[0];
+					return coupling;
+				})() : (
+					couplings.docs.find((c) => (
+						c.get(`members.${character1Ref.id}`) === true &&
+						c.get(`members.${character2Ref.id}`) === true &&
+						c.get('membersSize') === membersSize
+					))
 				);
-				const coupling = result && result.docs[0];
 
 				const baseData = {
 					character1: character1Ref,
@@ -171,20 +179,30 @@ const customsearch = google.customsearch('v1');
 						imagesUpdatedAt: null,
 					};
 
-					const newCouplingRef = couplingsRef.doc();
-					await transaction.set(newCouplingRef, data);
+					if (process.argv.includes('serial')) {
+						await couplingsRef.add(data);
+					} else {
+						const newCouplingRef = couplingsRef.doc();
+						await transaction.set(newCouplingRef, data);
+					}
 
 					console.log(`Added ${names}: ${inspect(data)}`);
 				} else {
+					if (coupling.get('names').includes(baseData.names[0])) {
+						continue;
+					}
+					console.log(coupling.get('names'), baseData.names[0]);
+
 					const data = {
 						...baseData,
 						names: uniq([...coupling.get('names'), ...baseData.names]),
 						namesSet: {...coupling.get('namesSet'), ...baseData.namesSet},
 					};
 
-					await transaction.update(coupling.ref, data);
-
-					console.log(`Updated ${names}: ${inspect(data)}`);
+					if (!process.argv.includes('serial')) {
+						await transaction.update(coupling.ref, data);
+						console.log(`Updated ${names}: ${inspect(data)}`);
+					}
 				}
 			}
 		});
