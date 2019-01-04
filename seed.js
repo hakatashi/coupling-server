@@ -36,47 +36,81 @@ const customsearch = google.customsearch('v1');
 	const charactersRef = db.collection('characters');
 	const couplingsRef = db.collection('couplings');
 	const imagesRef = db.collection('images');
-	const categoryRef = (await db.collection('categories').where('name', '==', 'アイドルマスターシンデレラガールズ').get()).docs[0].ref;
+	const categoryRef = db.collection('categories').doc('imas346');
 
 	if (process.argv.includes('characters')) {
-		for (const [name, ruby, alternative] of characterSeed) {
-			const baseData = {
-				name,
-				ruby,
-				nicopediaName: alternative,
-				pixpediaName: alternative,
-				tweets: [],
-				category: categoryRef,
-				gender: 'unknown',
-			};
-
-			const result = await charactersRef.where('name', '==', name).get();
-
-			if (result.empty) {
-				await new Promise((resolve) => setTimeout(resolve, 3000));
-
-				const [pixpediaData, nicopediaData] = await Promise.all([
-					pixpedia(alternative),
-					nicopedia(alternative),
-				]);
-
-				const data = {
-					...baseData,
-					imageUrl: pixpediaData.imageUrl,
-					nicopediaDescription: nicopediaData.description,
-					pixpediaDescription: pixpediaData.description,
-					color: '#212121',
+		await db.collection('categories').doc('imas346').set({
+			name: 'アイドルマスターシンデレラガールズ',
+			shortName: 'デレマス',
+			slug: 'imas346',
+		});
+		await db.collection('categories').doc('imas765').set({
+			name: 'アイドルマスター',
+			shortName: 'アイマス',
+			slug: 'imas765',
+		});
+		await db.collection('categories').doc('imas876').set({
+			name: 'アイドルマスターディアリースターズ',
+			shortName: 'アイマスDS',
+			slug: 'imas876',
+		});
+		await db.collection('categories').doc('imas315').set({
+			name: 'アイドルマスターSideM',
+			shortName: 'SideM',
+			slug: 'imas315',
+		});
+		await db.collection('categories').doc('imas283').set({
+			name: 'アイドルマスターシャイニーカラーズ',
+			shortName: 'シャニマス',
+			slug: 'imas283',
+		});
+		await db.runTransaction(async (transaction) => {
+			const characters = await transaction.get(charactersRef);
+			for (const [name, ruby, alternative, category] of characterSeed) {
+				const baseData = {
+					name,
+					ruby,
+					nicopediaName: alternative,
+					pixpediaName: alternative,
+					tweets: [],
+					category: db.collection('categories').doc(category),
+					gender: 'unknown',
 				};
 
-				await charactersRef.add(data);
+				const character = characters.docs.find((c) => c.get('name') === name);
 
-				console.log(`Added ${name}: ${inspect(data)}`);
-			} else {
-				await result.docs[0].ref.update(baseData);
+				if (character === undefined) {
+					await new Promise((resolve) => setTimeout(resolve, 3000));
 
-				console.log(`Updated ${name}: ${inspect(baseData)}`);
+					const [pixpediaData, nicopediaData] = await Promise.all([
+						pixpedia(alternative),
+						nicopedia(alternative),
+					]);
+
+					const data = {
+						...baseData,
+						imageUrl: pixpediaData.imageUrl,
+						nicopediaDescription: nicopediaData.description,
+						pixpediaDescription: pixpediaData.description,
+						color: '#212121',
+					};
+
+					/*
+					const newCharacterRef = charactersRef.doc();
+					await transaction.set(newCharacterRef, data);
+					*/
+					await charactersRef.add(data);
+
+					console.log(`Added ${name}: ${inspect(data)}`);
+				} else {
+					/*
+					await transaction.update(character.ref, baseData);
+
+					console.log(`Updated ${name}: ${inspect(baseData)}`);
+					*/
+				}
 			}
-		}
+		});
 	}
 
 	if (process.argv.includes('couplings')) {
