@@ -95,82 +95,98 @@ const customsearch = google.customsearch('v1');
 						color: '#212121',
 					};
 
-					/*
 					const newCharacterRef = charactersRef.doc();
 					await transaction.set(newCharacterRef, data);
-					*/
-					await charactersRef.add(data);
 
 					console.log(`Added ${name}: ${inspect(data)}`);
 				} else {
-					/*
 					await transaction.update(character.ref, baseData);
 
 					console.log(`Updated ${name}: ${inspect(baseData)}`);
-					*/
 				}
 			}
 		});
 	}
 
-	if (process.argv.includes('couplings')) {
-		for (const [namesString, character1, character2] of couplingSeed) {
-			const names = namesString.split(',');
-			const character1Ref = (await db.collection('characters').where('name', '==', character1).get()).docs[0].ref;
-			const character2Ref = (await db.collection('characters').where('name', '==', character2).get()).docs[0].ref;
-
-			const result = await couplingsRef
-				.where(`members.${character1Ref.id}`, '==', true)
-				.where(`members.${character2Ref.id}`, '==', true)
-				.get();
-
-			const baseData = {
-				character1: character1Ref,
-				character2: character2Ref,
-				members: {
-					[character1Ref.id]: true,
-					[character2Ref.id]: true,
-				},
-				names,
-				namesSet: Object.assign({}, ...names.map((name) => ({[name]: true}))),
-				isReversible: true,
-				isGeneral: false,
-			};
-
-			if (result.empty) {
-				await new Promise((resolve) => setTimeout(resolve, 3000));
-
-				const [pixpediaData, nicopediaData] = await Promise.all([
-					pixpedia(names[0]),
-					nicopedia(names[0]),
-				]);
-
-				const data = {
-					...baseData,
-					imageUrls: [pixpediaData.imageUrl],
-					nicopediaName: names[0],
-					pixpediaName: names[0],
-					nicopediaDescription: nicopediaData.description,
-					pixpediaDescription: pixpediaData.description,
-					images: [],
-					imagesUpdatedAt: null,
-				};
-
-				await couplingsRef.add(data);
-
-				console.log(`Added ${names}: ${inspect(data)}`);
-			} else {
-				const data = {
-					...baseData,
-					names: uniq([...result.docs[0].get('names'), ...baseData.names]),
-					namesSet: {...result.docs[0].get('namesSet'), ...baseData.namesSet},
-				};
-
-				await result.docs[0].ref.update(data);
-
-				console.log(`Updated ${names}: ${inspect(data)}`);
+	if (process.argv.includes('migrate-couplings')) {
+		await db.runTransaction(async (transaction) => {
+			const couplings = await transaction.get(couplingsRef);
+			for (const coupling of couplings.docs.slice(0, 500)) {
+				const membersSize = new Set(Object.keys(coupling.get('members'))).size;
+				await transaction.update(coupling.ref, {membersSize});
 			}
-		}
+		});
+	}
+
+	if (process.argv.includes('couplings')) {
+		await db.runTransaction(async (transaction) => {
+			const characters = await transaction.get(charactersRef);
+			console.log(couplingSeed);
+			for (const [namesString, character1, character2] of couplingSeed) {
+				const names = namesString.split(',');
+				const membersSize = new Set([character1, character2]).size;
+				console.log(character1);
+				const character1Ref = characters.docs.find((c) => c.get('name') === character1).ref;
+				console.log(character2);
+				const character2Ref = characters.docs.find((c) => c.get('name') === character2).ref;
+
+				const coupling = await transaction.get(
+					couplingsRef
+					.where(`members.${character1Ref.id}`, '==', true)
+					.where(`members.${character2Ref.id}`, '==', true)
+					.where('membersSize', '==', membersSize)
+				).docs[0];
+
+				const baseData = {
+					character1: character1Ref,
+					character2: character2Ref,
+					members: {
+						[character1Ref.id]: true,
+						[character2Ref.id]: true,
+					},
+					membersSize,
+					names,
+					namesSet: Object.assign({}, ...names.map((name) => ({[name]: true}))),
+					isReversible: true,
+					isGeneral: false,
+				};
+
+				if (coupling === undefined) {
+					await new Promise((resolve) => setTimeout(resolve, 3000));
+
+					const [pixpediaData, nicopediaData] = await Promise.all([
+						pixpedia(names[0]),
+						nicopedia(names[0]),
+					]);
+
+					const data = {
+						...baseData,
+						imageUrls: [pixpediaData.imageUrl],
+						nicopediaName: names[0],
+						pixpediaName: names[0],
+						nicopediaDescription: nicopediaData.description,
+						pixpediaDescription: pixpediaData.description,
+						images: [],
+						imagesUpdatedAt: null,
+					};
+
+					const newCouplingRef = couplingsRef.doc();
+					await transaction.set(newCouplingRef, data);
+
+					console.log(`Added ${names}: ${inspect(data)}`);
+				} else {
+					const data = {
+						...baseData,
+						names: uniq([...coupling.get('names'), ...baseData.names]),
+						namesSet: {...coupling.get('namesSet'), ...baseData.namesSet},
+					};
+
+					await transaction.update(coupling.ref, data);
+
+					console.log(`Updated ${names}: ${inspect(data)}`);
+				}
+			}
+		});
 	}
 
 	if (process.argv.includes('coupling-image')) {
